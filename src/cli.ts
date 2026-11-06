@@ -513,7 +513,7 @@ examples:
   chrome-devtools-axi emulate --network "Slow 3G" --cpu 4`,
 
   // DevTools debugging
-  console: `usage: chrome-devtools-axi console [--type <type>] [--limit <n>] [--page <n>]
+  console: `usage: chrome-devtools-axi console [--type <type>] [--limit <n>] [--page <n>] [--full]
 List console messages for the current page.
 
 flags:
@@ -524,22 +524,30 @@ flags:
                  ("all" or omitted returns every message.)
   --limit <n>    Maximum messages to return
   --page <n>     Page number (0-based)
+  --full         Show the complete output without the 2000-character cap
+                 (chrome-devtools-mcp's own shortening still applies)
 
 examples:
   chrome-devtools-axi console
   chrome-devtools-axi console --type error --limit 50
-  chrome-devtools-axi console --type all`,
+  chrome-devtools-axi console --type all
+  chrome-devtools-axi console --type error --full`,
 
-  "console-get": `usage: chrome-devtools-axi console-get <id>
+  "console-get": `usage: chrome-devtools-axi console-get <id> [--full]
 Get a specific console message by ID.
 
 args:
   <id>  Message ID from the console command (required)
 
-examples:
-  chrome-devtools-axi console-get 3`,
+flags:
+  --full  Show the complete message without the 2000-character cap
+          (chrome-devtools-mcp's own shortening still applies)
 
-  network: `usage: chrome-devtools-axi network [--type <type>] [--limit <n>] [--page <n>]
+examples:
+  chrome-devtools-axi console-get 3
+  chrome-devtools-axi console-get 3 --full`,
+
+  network: `usage: chrome-devtools-axi network [--type <type>] [--limit <n>] [--page <n>] [--full]
 List network requests for the current page.
 
 flags:
@@ -551,13 +559,16 @@ flags:
                  ("all" or omitted returns every request.)
   --limit <n>    Maximum requests to return
   --page <n>     Page number (0-based)
+  --full         Show the complete output without the 2000-character cap
+                 (chrome-devtools-mcp's own shortening still applies)
 
 examples:
   chrome-devtools-axi network
   chrome-devtools-axi network --type fetch --limit 50
-  chrome-devtools-axi network --type all`,
+  chrome-devtools-axi network --type all
+  chrome-devtools-axi network --type fetch --full`,
 
-  "network-get": `usage: chrome-devtools-axi network-get [id] [--response-file <path>] [--request-file <path>]
+  "network-get": `usage: chrome-devtools-axi network-get [id] [--response-file <path>] [--request-file <path>] [--full]
 Get a specific network request. If id is omitted, gets the selected request.
 
 args:
@@ -566,12 +577,16 @@ args:
 flags:
   --response-file <path>  Save response body to file
   --request-file <path>   Save request body to file
+  --full                  Show the complete request details without the
+                          2000-character cap (chrome-devtools-mcp's own
+                          shortening still applies)
 
 Relative output paths resolve against the directory where you run the CLI.
 
 examples:
   chrome-devtools-axi network-get 42
-  chrome-devtools-axi network-get 42 --response-file ./response.json`,
+  chrome-devtools-axi network-get 42 --response-file ./response.json
+  chrome-devtools-axi network-get 42 --full`,
 
   // Performance
   lighthouse: `usage: chrome-devtools-axi lighthouse [--device <device>] [--mode <mode>] [--output-dir <path>]
@@ -703,9 +718,10 @@ export function formatMcpResult(
   label: string,
   text: string,
   suggestions: string[],
+  full = false,
 ): string {
   const blocks: string[] = [];
-  const tr = truncateSnapshot(text, false, 2000);
+  const tr = truncateSnapshot(text, full, 2000);
   blocks.push(`${label}:\n${tr.text.trimEnd()}`);
   if (tr.truncated) {
     blocks[0] += `\n    ... (truncated, ${tr.totalLength} chars total)`;
@@ -1647,16 +1663,24 @@ async function handleEmulate(args: string[]): Promise<string> {
 
 // --- DevTools debugging handlers ---
 
-async function handleConsole(args: string[]): Promise<string> {
+async function handleConsole(args: string[], full: boolean): Promise<string> {
   const parsed = parseConsoleArgs(args);
   const result = await callTool("list_console_messages", parsed);
-  return formatMcpResult("console", result, [
-    "Run `chrome-devtools-axi console-get <id>` to see a specific message",
-    "Run `chrome-devtools-axi console --type error` to filter by type",
-  ]);
+  return formatMcpResult(
+    "console",
+    result,
+    [
+      "Run `chrome-devtools-axi console-get <id>` to see a specific message",
+      "Run `chrome-devtools-axi console --type error` to filter by type",
+    ],
+    full,
+  );
 }
 
-async function handleConsoleGet(args: string[]): Promise<string> {
+async function handleConsoleGet(
+  args: string[],
+  full: boolean,
+): Promise<string> {
   const id = args[0];
   if (!id) {
     throw new CdpError("Missing console message id", "VALIDATION_ERROR", [
@@ -1672,19 +1696,27 @@ async function handleConsoleGet(args: string[]): Promise<string> {
     );
   }
   const result = await callTool("get_console_message", { msgid });
-  return formatMcpResult("message", result, []);
+  return formatMcpResult("message", result, [], full);
 }
 
-async function handleNetwork(args: string[]): Promise<string> {
+async function handleNetwork(args: string[], full: boolean): Promise<string> {
   const parsed = parseNetworkArgs(args);
   const result = await callTool("list_network_requests", parsed);
-  return formatMcpResult("network", result, [
-    "Run `chrome-devtools-axi network-get <id>` to see request details",
-    "Run `chrome-devtools-axi network --type fetch` to filter by type",
-  ]);
+  return formatMcpResult(
+    "network",
+    result,
+    [
+      "Run `chrome-devtools-axi network-get <id>` to see request details",
+      "Run `chrome-devtools-axi network --type fetch` to filter by type",
+    ],
+    full,
+  );
 }
 
-async function handleNetworkGet(args: string[]): Promise<string> {
+async function handleNetworkGet(
+  args: string[],
+  full: boolean,
+): Promise<string> {
   const parsed = parseNetworkGetArgs(args);
   const toolArgs = { ...parsed };
   if (toolArgs.responseFilePath) {
@@ -1694,7 +1726,7 @@ async function handleNetworkGet(args: string[]): Promise<string> {
     toolArgs.requestFilePath = resolveOutputPath(toolArgs.requestFilePath);
   }
   const result = await callTool("get_network_request", toolArgs);
-  return formatMcpResult("request", result, []);
+  return formatMcpResult("request", result, [], full);
 }
 
 // --- Performance handlers ---
@@ -1882,10 +1914,10 @@ const COMMAND_HANDLERS: Record<string, CommandFn> = {
   closepage: withoutFullFlag(handleClosePage),
   resize: withoutFullFlag(handleResize),
   emulate: withoutFullFlag(handleEmulate),
-  console: withoutFullFlag(handleConsole),
-  "console-get": withoutFullFlag(handleConsoleGet),
-  network: withoutFullFlag(handleNetwork),
-  "network-get": withoutFullFlag(handleNetworkGet),
+  console: withFullFlag(handleConsole),
+  "console-get": withFullFlag(handleConsoleGet),
+  network: withFullFlag(handleNetwork),
+  "network-get": withFullFlag(handleNetworkGet),
   lighthouse: withoutFullFlag(handleLighthouse),
   "perf-start": withoutFullFlag(handlePerfStart),
   "perf-stop": withoutFullFlag(handlePerfStop),
@@ -1934,10 +1966,10 @@ const COMMAND_FLAGS: Record<string, readonly string[]> = {
     "--geolocation",
     "--user-agent",
   ],
-  console: ["--type", "--limit", "--page"],
-  "console-get": [],
-  network: ["--type", "--limit", "--page"],
-  "network-get": ["--response-file", "--request-file"],
+  console: ["--type", "--limit", "--page", "--full"],
+  "console-get": ["--full"],
+  network: ["--type", "--limit", "--page", "--full"],
+  "network-get": ["--response-file", "--request-file", "--full"],
   lighthouse: ["--device", "--mode", "--output-dir"],
   "perf-start": ["--no-reload", "--no-auto-stop", "--file"],
   "perf-stop": ["--file"],
@@ -1953,9 +1985,9 @@ const COMMAND_VALUE_FLAGS: Partial<Record<string, readonly string[]>> = {
   newpage: ["--context", "--timeout"],
   screenshot: ["--uid", "--format"],
   emulate: COMMAND_FLAGS.emulate,
-  console: COMMAND_FLAGS.console,
-  network: COMMAND_FLAGS.network,
-  "network-get": COMMAND_FLAGS["network-get"],
+  console: ["--type", "--limit", "--page"],
+  network: ["--type", "--limit", "--page"],
+  "network-get": ["--response-file", "--request-file"],
   lighthouse: COMMAND_FLAGS.lighthouse,
   "perf-start": ["--file"],
   "perf-stop": COMMAND_FLAGS["perf-stop"],

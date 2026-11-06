@@ -256,6 +256,8 @@ If the browser reconnects in process, every page id is reissued and the selectio
 
 For large request or response bodies, prefer `network-get <id> --response-file <path>` or `--request-file <path>` so the body goes to disk instead of flooding agent context.
 
+These four commands cap their output at 2000 characters by default. Add `--full` to print chrome-devtools-mcp's text unchanged, for example a long URL with the status, headers and failure that follow it. `--full` removes only this CLI's cap. Whatever chrome-devtools-mcp already shortens before it answers, such as long URLs in network lists and redirect chains or stack traces past 50 frames, arrives shortened.
+
 ### Performance
 
 | Command                     | Description                   |

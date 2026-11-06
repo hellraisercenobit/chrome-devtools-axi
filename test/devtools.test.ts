@@ -23,20 +23,20 @@ describe("getCommandHelp", () => {
     expect(getCommandHelp("network-get")).not.toBeNull();
   });
 
-  it("does not include --full in console help", () => {
-    expect(getCommandHelp("console")).not.toContain("--full");
+  it("includes --full in console help", () => {
+    expect(getCommandHelp("console")).toContain("--full");
   });
 
-  it("does not include --full in console-get help", () => {
-    expect(getCommandHelp("console-get")).not.toContain("--full");
+  it("includes --full in console-get help", () => {
+    expect(getCommandHelp("console-get")).toContain("--full");
   });
 
-  it("does not include --full in network help", () => {
-    expect(getCommandHelp("network")).not.toContain("--full");
+  it("includes --full in network help", () => {
+    expect(getCommandHelp("network")).toContain("--full");
   });
 
-  it("does not include --full in network-get help", () => {
-    expect(getCommandHelp("network-get")).not.toContain("--full");
+  it("includes --full in network-get help", () => {
+    expect(getCommandHelp("network-get")).toContain("--full");
   });
 });
 
